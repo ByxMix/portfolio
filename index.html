@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta property="og:title" content="">
+  <meta property="og:description" content="">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="">
+  <meta name="theme-color" content="#f59e0b">
+  <title>Portfolio</title>
+  <link rel="icon" href="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <!-- No-JS Fallback -->
+  <noscript>
+    <style>body { background: #0a0600; } .loading-screen { display: none !important; }</style>
+    <div style="max-width:700px;margin:100px auto;padding:20px;text-align:center;color:#fef3c7;font-family:sans-serif;">
+      <h1>JavaScript Required</h1>
+      <p>This portfolio requires JavaScript to load content. Please enable JavaScript and reload the page.</p>
+    </div>
+  </noscript>
+
+  <!-- Shader Background Canvas -->
+  <canvas id="shader-bg"></canvas>
+
+  <!-- Navigation -->
+  <nav id="navbar" class="navbar">
+    <div class="nav-container">
+      <a href="#intro" class="nav-logo" id="nav-logo">Portfolio</a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="nav-links"></ul>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Section 1: Introduction -->
+    <section id="intro" class="section section-intro">
+      <div class="container intro-grid">
+        <div class="intro-content">
+          <p class="intro-greeting" id="intro-greeting"></p>
+          <h1 class="intro-name" id="intro-name"></h1>
+          <p class="intro-tagline" id="intro-tagline"></p>
+          <p class="intro-bio" id="intro-bio"></p>
+          <div class="social-links" id="social-links"></div>
+          <div id="resume-btn-container"></div>
+        </div>
+        <div class="intro-image-wrapper">
+          <div class="intro-image-glow"></div>
+          <img id="intro-image" class="intro-image" src="" alt="">
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: Games -->
+    <section id="games" class="section section-games">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title" id="games-title"></h2>
+          <p class="section-subtitle" id="games-subtitle"></p>
+        </div>
+        <div class="games-grid" id="games-grid"></div>
+      </div>
+    </section>
+
+    <!-- Section 3: Videos -->
+    <section id="videos" class="section section-videos">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title" id="videos-title"></h2>
+          <p class="section-subtitle" id="videos-subtitle"></p>
+        </div>
+        <div class="videos-grid" id="videos-grid"></div>
+      </div>
+    </section>
+
+    <!-- Section 4: Code Snippets -->
+    <section id="snippets" class="section section-snippets">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title" id="snippets-title"></h2>
+          <p class="section-subtitle" id="snippets-subtitle"></p>
+        </div>
+        <div class="snippets-grid" id="snippets-grid"></div>
+      </div>
+    </section>
+
+    <!-- Section 5: FAQ -->
+    <section id="faq" class="section section-faq">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title" id="faq-title"></h2>
+          <p class="section-subtitle" id="faq-subtitle"></p>
+        </div>
+        <div class="faq-list" id="faq-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer id="footer" class="footer">
+    <div class="container footer-content">
+      <p id="footer-text"></p>
+      <a href="#intro" class="back-to-top" id="back-to-top" title="Back to top">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+      </a>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

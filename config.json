@@ -1,0 +1,317 @@
+{
+  "meta": {
+    "title": "Gl!tch — Roblox Developer",
+    "description": "Portfolio of a passionate Roblox developer with 7+ years of experience building immersive games and experiences.",
+    "favicon": "https://www.roblox.com/favicon.ico",
+    "ogImage": ""
+  },
+
+  "theme": {
+    "primaryColor": "#f59e0b",
+    "secondaryColor": "#1c1305",
+    "accentColor": "#fbbf24",
+    "textColor": "#fef3c7",
+    "textSecondary": "#d4a34a",
+    "cardBackground": "rgba(28, 19, 5, 0.65)",
+    "cardBorder": "rgba(245, 158, 11, 0.2)",
+    "fontFamily": "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif",
+    "headingFontFamily": "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif",
+    "borderRadius": "16px",
+    "shaderDotColor": [1.0, 0.65, 0.1],
+    "shaderBgColor": [0.05, 0.03, 0.0],
+    "shaderDotSize": 2.0,
+    "shaderGridSpacing": 50.0,
+    "shaderMouseRadius": 350.0,
+    "shaderSpeed": 1.0,
+    "shaderBaseAlpha": 0.12,
+    "shaderMouseAlpha": 0.8,
+    "shaderPulseIntensity": 0.08
+  },
+
+  "navbar": {
+    "logo": "Portfolio",
+    "links": [
+      { "label": "Home", "href": "#intro" },
+      { "label": "Games", "href": "#games" },
+      { "label": "Videos", "href": "#videos" },
+      { "label": "Snippets", "href": "#snippets" },
+      { "label": "FAQ", "href": "#faq" }
+    ]
+  },
+
+  "intro": {
+    "greeting": "Hey, I'm",
+    "name": "Gl!tch",
+    "tagline": "Roblox Developer & Programmer",
+    "bio": "Hello! Here you'll find almost everything I've done in the past years as a scripter, if you don't find anything related to what you need, don't worry, I'm capable of scripting mostly everything, please scroll down to find videos or game links about it. Once you are done looking at my portfolio feel free to DM me and tell me the details about your commission. I'll await for your DM!",
+    "profileImage": "assets/profile.png",
+    "profileImageAlt": "Profile headshot",
+    "resumeButton": {
+      "show": false,
+      "label": "Download Resume",
+      "url": "#"
+    }
+  },
+
+  "socialLinks": [
+    {
+      "platform": "Roblox",
+      "url": "https://www.roblox.com/users/660604020/profile",
+      "icon": "roblox"
+    },
+    {
+      "platform": "Twitter / X",
+      "url": "https://x.com/gl1tch1_in",
+      "icon": "twitter"
+    },
+    {
+      "platform": "Discord",
+      "action": "copy",
+      "copyText": "gl1tch1",
+      "icon": "discord"
+    }
+  ],
+
+  "games": {
+    "sectionTitle": "Published Games",
+    "sectionSubtitle": "A collection of games I've developed or helped develop on Roblox.",
+    "items": [
+      {
+        "title": "Refinery Caves 2",
+        "description": "Feb 2025 - Aug 2025. Programmer. A game based on Lumber Tycoon 2, helped in tasks such as heavy optimization, scripting of core systems, bug fixing, aesthetics, terrain generation and more.",
+        "thumbnail": "assets/refinery_caves_2_thumbnail.webp",
+        "url": "https://www.roblox.com/games/12196278347/Refinery-Caves-2"
+      },
+      {
+        "title": "Fine'ry verse",
+        "description": "Aug 2025 - Nov 2025. Lead Programmer. An advert game for the Fine'ry fragrance brand.",
+        "thumbnail": "assets/finery_verse_thumbnail.webp",
+        "url": "https://www.roblox.com/games/79292350655548/finery-verse-A-Fragrance-Adventure"
+      },
+      {
+        "title": "Neuro Malfunction",
+        "description": "Jun 2024 - Jul 2024. Lead Programmer. A game focused on a FPS singleplayer experience where the player has to slow down time in order to escape.",
+        "thumbnail": "assets/neuro_thumbnail.webp",
+        "url": "https://www.roblox.com/games/17745722759/NeuroMalfunction"
+      },
+      {
+        "title": "Dead Descent",
+        "description": "Oct 2022 - Oct 2022. Lead Programmer. Horror game focused on exploration and puzzle solving, with procedurally generated maps and custom AI behaviour.",
+        "thumbnail": "assets/dead_descent_thumbnail.webp",
+        "url": "https://www.roblox.com/games/11297279848/Dead-Descent"
+      }
+    ]
+  },
+
+  "videos": {
+    "sectionTitle": "Project Showcase",
+    "sectionSubtitle": "Videos showcasing my development process, tech demos or any related content.",
+    "items": [
+        {
+        "title": "Ocean Shader Demo",
+        "description": "Using animated PBR Textures and gestner waves to create a realistic ocean",
+        "type": "file",
+        "videoUrl": "assets/ocean_mesh.mp4"
+        },
+        {
+        "title": "FPS System",
+        "description": "A showcase of the custom FPS system I developed, featuring smooth controls, time control, weapon mechanics and AI interactions",
+        "type": "file",
+        "videoUrl": "assets/neuro_malfunction.mp4"
+        },
+        {
+        "title": "Tower Defense System",
+        "description": "Showcase of a custom Tower Defense system I developed, mainly focused on network optimization, pathfinding and modularity",
+        "type": "file",
+        "videoUrl": "assets/tower_defense_system.mp4"
+        },
+        {
+        "title": "2D Game",
+        "description": "Showcase of a custom 2D game I developed, featuring 2D physics, collisions and water (works with multiplayer too)",
+        "type": "file",
+        "videoUrl": "assets/2d_game.mp4"
+        },
+        {
+        "title": "Ray marching demo",
+        "description": "Showcase of a custom ray marching demo I developed, featuring real-time lighting and reflections.",
+        "type": "file",
+        "videoUrl": "assets/raycast_marching.mp4"
+        },
+        {
+        "title": "2D Game editor",
+        "description": "World builder for the 2D game.",
+        "type": "file",
+        "videoUrl": "assets/2d_game_editor.mp4"
+        },
+        {
+        "title": "AI Pathfinding System",
+        "description": "Showcase of a custom AI pathfinding system I developed, capable of handling the AI of +2000 enemies.",
+        "type": "file",
+        "videoUrl": "assets/advanced_ai.mp4"
+        },
+        {
+        "title": "Voxel Factory Game",
+        "description": "Showcase of a prototype of a voxel-based factory like game, mainly focused on machinery, automation, and resource management. Similar to modded Minecraft, I am hoping to finish it one day.",
+        "type": "file",
+        "videoUrl": "assets/machine_game.mp4"
+        },
+        {
+        "title": "Soft body physics",
+        "description": "Module that turns any mesh with bones into a mesh with soft body physics including fully custom settings.",
+        "type": "file",
+        "videoUrl": "assets/softbody_physics.mp4"
+        },
+        {
+        "title": "Train movement",
+        "description": "Showcase of a vehicle system that moves along a spline, mainly focused on smooth movement and optimizing network.",
+        "type": "file",
+        "videoUrl": "assets/train_movement.mp4"
+        },
+        {
+        "title": "Tile movement",
+        "description": "Showcase of a tile-based movement system, based off Bloxorz.",
+        "type": "file",
+        "videoUrl": "assets/tile_movement.mp4"
+        },
+        {
+        "title": "Livestreaming script",
+        "description": "Showcase of a livestreaming script I developed, allowing real-time broadcasting to roblox servers.",
+        "type": "file",
+        "videoUrl": "assets/livestreaming.mp4"
+        },
+        {
+        "title": "Video player",
+        "description": "Showcase of a video player script I developed, allowing real-time video playback within Roblox. (This was made before the video player was added to Roblox womp womp!)",
+        "type": "file",
+        "videoUrl": "assets/video_player.mp4"
+        },
+        {
+        "title": "Quest system",
+        "description": "Quest system focused on modularity, allows you to create and manage quests with different objectives, rewards and conditions.",
+        "type": "file",
+        "videoUrl": "assets/quest_system.mp4"
+        },
+        {
+        "title": "Find Luigi minigame",
+        "description": "Just a minigame based of the Find Luigi meme.",
+        "type": "file",
+        "videoUrl": "assets/find_luigi.mp4"
+        },
+        {
+        "title": "Animation loader",
+        "description": "Menu display that handles loading and playing animations for multiple characters, mostly for cutscenes.",
+        "type": "file",
+        "videoUrl": "assets/animation_menu.mp4"
+        },
+        {
+        "title": "Dungeon generator",
+        "description": "Procedural dungeon generator featuring weights, treasure rooms, boss rooms and so on.",
+        "type": "file",
+        "videoUrl": "assets/dungeon_generator.mp4"
+        },
+        {
+        "title": "Volumetric smoke",
+        "description": "Showcase of a smoke spread system using voxels, allows for realistic smoke movement and interactions.",
+        "type": "file",
+        "videoUrl": "assets/volumetric_smoke.mp4"
+        },
+        {
+        "title": "Moore neighbourhood",
+        "description": "Showcase of a Moore neighbourhood implementation, showing how cells interact with their surrounding cells. Just a visual thing not really useful for anything",
+        "type": "file",
+        "videoUrl": "assets/moore_neighborhood.mp4"
+        },
+        {
+        "title": "Guns replica",
+        "description": "Replica of a guns system for another game",
+        "type": "file",
+        "videoUrl": "assets/gun_system.mp4"
+        },
+        {
+        "title": "3D mesh rendering",
+        "description": "Showcase of a 3D mesh rendering system, can handle around 1000 triangles with decent performance.",
+        "type": "file",
+        "videoUrl": "assets/2d_mesh_render.mp4"
+        },
+        {
+        "title": "Meshed snow",
+        "description": "Showcase of snow that deforms when you walk on it.",
+        "type": "file",
+        "videoUrl": "assets/meshed_snow.mp4"
+        },
+        {
+        "title": "Cannon script",
+        "description": "Showcase of a simple cannon and score script.",
+        "type": "file",
+        "videoUrl": "assets/cannon.mp4"
+        },
+        {
+        "title": "Laser reflection",
+        "description": "Showcase of a laser reflection system, demonstrating how lasers can bounce off surfaces and interact with objects.",
+        "type": "file",
+        "videoUrl": "assets/lasers.mp4"
+        },
+        {
+        "title": "[OLD] Inverse gravity",
+        "description": "Just a tech demo that inverts gravity for the player, allowing them to walk on the ceiling.",
+        "type": "file",
+        "videoUrl": "assets/inverse_gravity.mp4"
+        },
+        {
+        "title": "[OLD] Old 2D Game",
+        "description": "Older version of the 2D game, featuring more basic mechanics and graphics.",
+        "type": "file",
+        "videoUrl": "assets/old_2d_game.mp4"
+        },
+        {
+        "title": "Dynamic water texture",
+        "description": "Tech demo of a basic dynamic water ripple just to test editable images and parallel processing.",
+        "type": "file",
+        "videoUrl": "assets/water_mesh.mp4"
+        }
+    ]
+  },
+
+  "snippets": {
+    "sectionTitle": "Code Snippets",
+    "sectionSubtitle": "Luau code samples used in some of my projects, feel free to take a look.",
+    "items": [
+      {
+        "title": "State Manager",
+        "description": "A state manager module I developed to handle game and table states, basically adds a .Changed event to tables, letting you handle changes before and after they are made.",
+        "language": "luau",
+        "codeFile": "assets/state_manager.luau"
+      },
+      {
+        "title": "Spline Creator",
+        "description": "A module for creating and managing splines, allowing for smooth interpolation between points.",
+        "language": "luau",
+        "codeFile": "assets/spline_creator.luau"
+      }
+    ]
+  },
+
+  "faq": {
+    "sectionTitle": "Frequently Asked Questions",
+    "sectionSubtitle": "Got questions? Here are some answers to the most common ones.",
+    "items": [
+      {
+        "question": "Are you available for commissions or hire?",
+        "answer": "Yes! I'm open to commissions and contract work. Whether you need a full game built from scratch, specific systems programmed feel free to reach out through my social links above."
+      },
+      {
+        "question": "Can I use your open-source modules in my games?",
+        "answer": "Absolutely! Any modules or resources I've published as open-source are free to use in your projects. Just make sure to check the specific license for each resource and give credit where required."
+      },
+      {
+        "question": "How can I contact you?",
+        "answer": "The best way to reach me is through Discord. You can find the links in the introduction section at the top of this page."
+      }
+    ]
+  },
+
+  "footer": {
+    "text": "© 2026 Gl!tch. All rights reserved.",
+    "showBackToTop": true
+  }
+}
