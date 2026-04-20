@@ -543,7 +543,12 @@
   // ─── WebGL Dot Grid Shader Background ───────
   function initShader(theme) {
     const canvas = document.getElementById('shader-bg');
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+    // Detect low-end: reduced motion preference, low device memory, or low core count
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const lowEnd = prefersReduced || (navigator.deviceMemory && navigator.deviceMemory <= 4) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+
+    const gl = canvas.getContext('webgl', { antialias: false, alpha: false, preserveDrawingBuffer: false }) || canvas.getContext('experimental-webgl');
     if (!gl) {
       canvas.style.background = 'linear-gradient(135deg, #0a0600, #1c1305)';
       return;
@@ -560,14 +565,21 @@
     const mouseAlpha = theme?.shaderMouseAlpha || 0.8;
     const pulseIntensity = theme?.shaderPulseIntensity || 0.08;
 
-    // Mouse tracking
+    // Cap DPR: 1 on low-end, max 1.5 otherwise
+    const maxDPR = lowEnd ? 1.0 : Math.min(window.devicePixelRatio, 1.5);
+
+    // Mouse tracking (throttled)
     let mouseX = -9999, mouseY = -9999;
     canvas.style.pointerEvents = 'none';
 
+    let mouseMoveRaf = 0;
     document.addEventListener('mousemove', (e) => {
-      const dpr = Math.min(window.devicePixelRatio, 2);
-      mouseX = e.clientX * dpr;
-      mouseY = (window.innerHeight - e.clientY) * dpr;
+      if (mouseMoveRaf) return;
+      mouseMoveRaf = requestAnimationFrame(() => {
+        mouseX = e.clientX * maxDPR;
+        mouseY = (window.innerHeight - e.clientY) * maxDPR;
+        mouseMoveRaf = 0;
+      });
     });
 
     document.addEventListener('mouseleave', () => {
@@ -576,13 +588,16 @@
     });
 
     function resize() {
-      const dpr = Math.min(window.devicePixelRatio, 2);
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
+      canvas.width = window.innerWidth * maxDPR;
+      canvas.height = window.innerHeight * maxDPR;
       gl.viewport(0, 0, canvas.width, canvas.height);
     }
     resize();
-    window.addEventListener('resize', resize);
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(resize, 150);
+    });
 
     // Vertex shader
     const vsSource = `
@@ -592,8 +607,45 @@
       }
     `;
 
-    // Fragment shader — Perlin noise driven dots with edges and mouse displacement
-    const fsSource = `
+    // Fragment shader — optimized: reduced loops, cheaper noise for low-end
+    const fsSource = lowEnd ? `
+      precision lowp float;
+      uniform float u_time;
+      uniform vec2 u_resolution;
+      uniform vec3 u_dotColor;
+      uniform vec3 u_bgColor;
+      uniform float u_dotSize;
+      uniform float u_gridSpacing;
+      uniform float u_baseAlpha;
+      uniform float u_pulseIntensity;
+
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+      }
+
+      void main() {
+        vec2 fragCoord = gl_FragCoord.xy;
+        vec2 cell = floor(fragCoord / u_gridSpacing);
+        vec2 center = (cell + 0.5) * u_gridSpacing;
+
+        float h = hash(cell + floor(u_time * 0.3));
+        float offset = (h - 0.5) * u_gridSpacing * 0.3;
+        center += offset;
+
+        float dist = length(fragCoord - center);
+        float dot = 1.0 - smoothstep(u_dotSize - 0.8, u_dotSize + 0.8, dist);
+        float alpha = u_baseAlpha + hash(cell) * u_pulseIntensity * 2.0;
+
+        vec3 finalColor = mix(u_bgColor, u_dotColor * 0.6, dot * alpha);
+
+        vec2 uv = gl_FragCoord.xy / u_resolution;
+        vec2 vigUV = uv * (1.0 - uv);
+        float vig = pow(vigUV.x * vigUV.y * 15.0, 0.2);
+        finalColor *= mix(0.7, 1.0, vig);
+
+        gl_FragColor = vec4(finalColor, 1.0);
+      }
+    ` : `
       precision mediump float;
       uniform float u_time;
       uniform vec2 u_resolution;
@@ -608,65 +660,48 @@
       uniform float u_mouseAlpha;
       uniform float u_pulseIntensity;
 
-      // ---- Perlin noise (2D gradient noise) ----
-      vec2 grad(vec2 p) {
-        float h = fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-        float h2 = fract(sin(dot(p, vec2(269.5, 183.3))) * 76543.2109);
-        return normalize(vec2(h, h2) * 2.0 - 1.0);
+      // ---- Cheap hash-based noise (faster than Perlin) ----
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
       }
 
-      float perlin(vec2 p) {
+      float noise(vec2 p) {
         vec2 i = floor(p);
         vec2 f = fract(p);
-        vec2 u = f * f * (3.0 - 2.0 * f); // smoothstep
-
-        float a = dot(grad(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0));
-        float b = dot(grad(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0));
-        float c = dot(grad(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0));
-        float d = dot(grad(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
-
-        return mix(mix(a, b, u.x), mix(c, d, u.x), u.y) * 0.5 + 0.5;
+        f = f * f * (3.0 - 2.0 * f);
+        float a = hash(i);
+        float b = hash(i + vec2(1.0, 0.0));
+        float c = hash(i + vec2(0.0, 1.0));
+        float d = hash(i + vec2(1.0, 1.0));
+        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
       }
 
-      // Get the displaced dot center for a given grid cell
       vec2 getDotPos(vec2 cell) {
         vec2 base = (cell + 0.5) * u_gridSpacing;
-
-        // Perlin noise for position offset (independent seed via offset)
-        float noiseX = perlin(cell * 0.4 + vec2(50.0, 0.0) + u_time * u_speed * 0.3);
-        float noiseY = perlin(cell * 0.4 + vec2(0.0, 80.0) + u_time * u_speed * 0.25);
+        float noiseX = noise(cell * 0.4 + vec2(50.0, 0.0) + u_time * u_speed * 0.3);
+        float noiseY = noise(cell * 0.4 + vec2(0.0, 80.0) + u_time * u_speed * 0.25);
         vec2 offset = (vec2(noiseX, noiseY) - 0.5) * u_gridSpacing * 0.55;
 
-        // Mouse spherical displacement
-        float mouseDist = length(base + offset - u_mouse);
-        float mouseInfl = 1.0 - smoothstep(0.0, u_mouseRadius, mouseDist);
-        mouseInfl = mouseInfl * mouseInfl;
-        vec2 mouseDir = (mouseDist > 0.001) ? normalize(base + offset - u_mouse) : vec2(0.0);
-        vec2 mouseDisplace = mouseDir * mouseInfl * u_gridSpacing * 0.4;
-
-        return base + offset + mouseDisplace;
-      }
-
-      // Get alpha for a given grid cell
-      float getDotAlpha(vec2 cell) {
-        // Independent Perlin noise for transparency (different seed)
-        float noiseAlpha = perlin(cell * 0.35 + vec2(200.0, 150.0) + u_time * u_speed * 0.2);
-        float alpha = u_baseAlpha + noiseAlpha * u_pulseIntensity * 3.0;
-
-        // Mouse makes dots less transparent (more visible)
-        vec2 pos = getDotPos(cell);
+        vec2 pos = base + offset;
         float mouseDist = length(pos - u_mouse);
         float mouseInfl = 1.0 - smoothstep(0.0, u_mouseRadius, mouseDist);
-        mouseInfl = mouseInfl * mouseInfl;
-        alpha = mix(alpha, u_mouseAlpha, mouseInfl);
-
-        return clamp(alpha, 0.0, 1.0);
+        mouseInfl *= mouseInfl;
+        vec2 mouseDir = (mouseDist > 0.001) ? normalize(pos - u_mouse) : vec2(0.0);
+        pos += mouseDir * mouseInfl * u_gridSpacing * 0.4;
+        return pos;
       }
 
-      // Segment distance (point to line segment)
+      float getDotAlpha(vec2 cell, vec2 pos) {
+        float noiseAlpha = noise(cell * 0.35 + vec2(200.0, 150.0) + u_time * u_speed * 0.2);
+        float alpha = u_baseAlpha + noiseAlpha * u_pulseIntensity * 3.0;
+        float mouseDist = length(pos - u_mouse);
+        float mouseInfl = 1.0 - smoothstep(0.0, u_mouseRadius, mouseDist);
+        mouseInfl *= mouseInfl;
+        return clamp(mix(alpha, u_mouseAlpha, mouseInfl), 0.0, 1.0);
+      }
+
       float segDist(vec2 p, vec2 a, vec2 b) {
-        vec2 pa = p - a;
-        vec2 ba = b - a;
+        vec2 pa = p - a, ba = b - a;
         float t = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
         return length(pa - ba * t);
       }
@@ -675,75 +710,54 @@
         vec2 fragCoord = gl_FragCoord.xy;
         vec2 cell = floor(fragCoord / u_gridSpacing);
 
-        // ---- Accumulate dots from 3x3 neighborhood ----
         float dotMask = 0.0;
         float closestDotAlpha = 0.0;
-        float closestDist = 9999.0;
 
+        // 3x3 neighborhood for dots
         for (int dy = -1; dy <= 1; dy++) {
           for (int dx = -1; dx <= 1; dx++) {
             vec2 neighbor = cell + vec2(float(dx), float(dy));
             vec2 pos = getDotPos(neighbor);
             float dist = length(fragCoord - pos);
-
-            // Anti-aliased dot
-            float dot = 1.0 - smoothstep(u_dotSize - 0.8, u_dotSize + 0.8, dist);
-            float alpha = getDotAlpha(neighbor);
-            dotMask = max(dotMask, dot * alpha);
-
-            if (dist < closestDist) {
-              closestDist = dist;
+            float d = 1.0 - smoothstep(u_dotSize - 0.8, u_dotSize + 0.8, dist);
+            float alpha = getDotAlpha(neighbor, pos);
+            if (d * alpha > dotMask) {
+              dotMask = d * alpha;
               closestDotAlpha = alpha;
             }
           }
         }
 
-        // ---- Edges between connected dots (4-connected: right and up neighbors) ----
+        // Edges: only current cell + right and up (no 3x3 edge loop)
         float edgeMask = 0.0;
         float edgeWidth = 0.6;
+        vec2 posA = getDotPos(cell);
+        float alphaA = getDotAlpha(cell, posA);
 
-        for (int dy = -1; dy <= 1; dy++) {
-          for (int dx = -1; dx <= 1; dx++) {
-            vec2 baseCell = cell + vec2(float(dx), float(dy));
-            vec2 posA = getDotPos(baseCell);
-            float alphaA = getDotAlpha(baseCell);
+        vec2 posR = getDotPos(cell + vec2(1.0, 0.0));
+        float alphaR = getDotAlpha(cell + vec2(1.0, 0.0), posR);
+        float dR = segDist(fragCoord, posA, posR);
+        float edgeR = 1.0 - smoothstep(edgeWidth - 0.3, edgeWidth + 0.3, dR);
+        edgeMask = max(edgeMask, edgeR * (alphaA + alphaR) * 0.15);
 
-            // Right neighbor edge
-            vec2 rightCell = baseCell + vec2(1.0, 0.0);
-            vec2 posR = getDotPos(rightCell);
-            float alphaR = getDotAlpha(rightCell);
-            float dR = segDist(fragCoord, posA, posR);
-            float edgeR = 1.0 - smoothstep(edgeWidth - 0.3, edgeWidth + 0.3, dR);
-            float edgeAlphaR = (alphaA + alphaR) * 0.5 * 0.3; // 30% of avg alpha
-            edgeMask = max(edgeMask, edgeR * edgeAlphaR);
+        vec2 posU = getDotPos(cell + vec2(0.0, 1.0));
+        float alphaU = getDotAlpha(cell + vec2(0.0, 1.0), posU);
+        float dU = segDist(fragCoord, posA, posU);
+        float edgeU = 1.0 - smoothstep(edgeWidth - 0.3, edgeWidth + 0.3, dU);
+        edgeMask = max(edgeMask, edgeU * (alphaA + alphaU) * 0.15);
 
-            // Up neighbor edge
-            vec2 upCell = baseCell + vec2(0.0, 1.0);
-            vec2 posU = getDotPos(upCell);
-            float alphaU = getDotAlpha(upCell);
-            float dU = segDist(fragCoord, posA, posU);
-            float edgeU = 1.0 - smoothstep(edgeWidth - 0.3, edgeWidth + 0.3, dU);
-            float edgeAlphaU = (alphaA + alphaU) * 0.5 * 0.3;
-            edgeMask = max(edgeMask, edgeU * edgeAlphaU);
-          }
-        }
-
-        // Combine dots and edges
         float combined = max(dotMask, edgeMask);
 
-        // Color: brighter near mouse
         float mouseDistFrag = length(fragCoord - u_mouse);
         float mouseGlow = 1.0 - smoothstep(0.0, u_mouseRadius, mouseDistFrag);
-        mouseGlow = mouseGlow * mouseGlow;
+        mouseGlow *= mouseGlow;
         vec3 color = mix(u_dotColor * 0.6, u_dotColor, mouseGlow * 0.8 + closestDotAlpha * 0.3);
 
         vec3 finalColor = mix(u_bgColor, color, combined);
 
-        // Subtle vignette
         vec2 uv = gl_FragCoord.xy / u_resolution;
         vec2 vigUV = uv * (1.0 - uv);
-        float vig = vigUV.x * vigUV.y * 15.0;
-        vig = pow(vig, 0.2);
+        float vig = pow(vigUV.x * vigUV.y * 15.0, 0.2);
         finalColor *= mix(0.7, 1.0, vig);
 
         gl_FragColor = vec4(finalColor, 1.0);
@@ -813,17 +827,29 @@
     gl.uniform1f(uPulseIntensity, pulseIntensity);
 
     const startTime = performance.now();
+    const frameInterval = lowEnd ? 50 : 33; // ~20fps low-end, ~30fps normal
+    let lastFrame = 0;
+    let isVisible = true;
 
-    function render() {
-      const elapsed = (performance.now() - startTime) / 1000;
+    document.addEventListener('visibilitychange', () => {
+      isVisible = !document.hidden;
+      if (isVisible) lastFrame = 0;
+    });
+
+    function render(now) {
+      requestAnimationFrame(render);
+      if (!isVisible) return;
+      if (now - lastFrame < frameInterval) return;
+      lastFrame = now;
+
+      const elapsed = (now - startTime) / 1000;
       gl.uniform1f(uTime, elapsed);
       gl.uniform2f(uResolution, canvas.width, canvas.height);
       gl.uniform2f(uMouse, mouseX, mouseY);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      requestAnimationFrame(render);
     }
 
-    render();
+    requestAnimationFrame(render);
   }
 
   // ─── Start ──────────────────────────────────
