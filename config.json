@@ -198,8 +198,8 @@
         "videoUrl": "assets/find_luigi.mp4"
         },
         {
-        "title": "Animation loader",
-        "description": "Menu display that handles loading and playing animations for multiple characters, mostly for cutscenes.",
+        "title": "Animation menu",
+        "description": "Menu display that handles loading and playing animations for multiple characters, mostly for cutscenes. (Made for commission)",
         "type": "file",
         "videoUrl": "assets/animation_menu.mp4"
         },
