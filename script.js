@@ -548,6 +548,13 @@
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const lowEnd = prefersReduced || (navigator.deviceMemory && navigator.deviceMemory <= 4) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
 
+    // Low-end: skip shader entirely, use CSS gradient
+    if (lowEnd) {
+      canvas.style.display = 'none';
+      document.body.style.background = `linear-gradient(135deg, rgb(${Math.round(bgColor[0]*255)},${Math.round(bgColor[1]*255)},${Math.round(bgColor[2]*255)}), rgb(${Math.round(bgColor[0]*400)},${Math.round(bgColor[1]*400)},${Math.round(bgColor[2]*400)}))`;
+      return;
+    }
+
     const gl = canvas.getContext('webgl', { antialias: false, alpha: false, preserveDrawingBuffer: false }) || canvas.getContext('experimental-webgl');
     if (!gl) {
       canvas.style.background = 'linear-gradient(135deg, #0a0600, #1c1305)';
@@ -607,45 +614,8 @@
       }
     `;
 
-    // Fragment shader — optimized: reduced loops, cheaper noise for low-end
-    const fsSource = lowEnd ? `
-      precision lowp float;
-      uniform float u_time;
-      uniform vec2 u_resolution;
-      uniform vec3 u_dotColor;
-      uniform vec3 u_bgColor;
-      uniform float u_dotSize;
-      uniform float u_gridSpacing;
-      uniform float u_baseAlpha;
-      uniform float u_pulseIntensity;
-
-      float hash(vec2 p) {
-        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-      }
-
-      void main() {
-        vec2 fragCoord = gl_FragCoord.xy;
-        vec2 cell = floor(fragCoord / u_gridSpacing);
-        vec2 center = (cell + 0.5) * u_gridSpacing;
-
-        float h = hash(cell + floor(u_time * 0.3));
-        float offset = (h - 0.5) * u_gridSpacing * 0.3;
-        center += offset;
-
-        float dist = length(fragCoord - center);
-        float dot = 1.0 - smoothstep(u_dotSize - 0.8, u_dotSize + 0.8, dist);
-        float alpha = u_baseAlpha + hash(cell) * u_pulseIntensity * 2.0;
-
-        vec3 finalColor = mix(u_bgColor, u_dotColor * 0.6, dot * alpha);
-
-        vec2 uv = gl_FragCoord.xy / u_resolution;
-        vec2 vigUV = uv * (1.0 - uv);
-        float vig = pow(vigUV.x * vigUV.y * 15.0, 0.2);
-        finalColor *= mix(0.7, 1.0, vig);
-
-        gl_FragColor = vec4(finalColor, 1.0);
-      }
-    ` : `
+    // Fragment shader — hash+sin animation (no interpolated noise), 4-edge connectivity
+    const fsSource = `
       precision mediump float;
       uniform float u_time;
       uniform vec2 u_resolution;
@@ -660,44 +630,33 @@
       uniform float u_mouseAlpha;
       uniform float u_pulseIntensity;
 
-      // ---- Cheap hash-based noise (faster than Perlin) ----
       float hash(vec2 p) {
         return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
       }
 
-      float noise(vec2 p) {
-        vec2 i = floor(p);
-        vec2 f = fract(p);
-        f = f * f * (3.0 - 2.0 * f);
-        float a = hash(i);
-        float b = hash(i + vec2(1.0, 0.0));
-        float c = hash(i + vec2(0.0, 1.0));
-        float d = hash(i + vec2(1.0, 1.0));
-        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+      vec2 getDotPos(vec2 c) {
+        vec2 base = (c + 0.5) * u_gridSpacing;
+        float h1 = hash(c + vec2(50.0, 0.0));
+        float h2 = hash(c + vec2(0.0, 80.0));
+        vec2 off = vec2(
+          sin(u_time * u_speed * 0.3 + h1 * 6.2832),
+          sin(u_time * u_speed * 0.25 + h2 * 6.2832)
+        ) * u_gridSpacing * 0.275;
+        vec2 pos = base + off;
+        float md = length(pos - u_mouse);
+        float mi = 1.0 - smoothstep(0.0, u_mouseRadius, md);
+        mi *= mi;
+        vec2 dir = (md > 0.001) ? normalize(pos - u_mouse) : vec2(0.0);
+        return pos + dir * mi * u_gridSpacing * 0.4;
       }
 
-      vec2 getDotPos(vec2 cell) {
-        vec2 base = (cell + 0.5) * u_gridSpacing;
-        float noiseX = noise(cell * 0.4 + vec2(50.0, 0.0) + u_time * u_speed * 0.3);
-        float noiseY = noise(cell * 0.4 + vec2(0.0, 80.0) + u_time * u_speed * 0.25);
-        vec2 offset = (vec2(noiseX, noiseY) - 0.5) * u_gridSpacing * 0.55;
-
-        vec2 pos = base + offset;
-        float mouseDist = length(pos - u_mouse);
-        float mouseInfl = 1.0 - smoothstep(0.0, u_mouseRadius, mouseDist);
-        mouseInfl *= mouseInfl;
-        vec2 mouseDir = (mouseDist > 0.001) ? normalize(pos - u_mouse) : vec2(0.0);
-        pos += mouseDir * mouseInfl * u_gridSpacing * 0.4;
-        return pos;
-      }
-
-      float getDotAlpha(vec2 cell, vec2 pos) {
-        float noiseAlpha = noise(cell * 0.35 + vec2(200.0, 150.0) + u_time * u_speed * 0.2);
-        float alpha = u_baseAlpha + noiseAlpha * u_pulseIntensity * 3.0;
-        float mouseDist = length(pos - u_mouse);
-        float mouseInfl = 1.0 - smoothstep(0.0, u_mouseRadius, mouseDist);
-        mouseInfl *= mouseInfl;
-        return clamp(mix(alpha, u_mouseAlpha, mouseInfl), 0.0, 1.0);
+      float getDotAlpha(vec2 c, vec2 pos) {
+        float h = hash(c + vec2(200.0, 150.0));
+        float a = u_baseAlpha + sin(u_time * u_speed * 0.2 + h * 6.2832) * u_pulseIntensity;
+        float md = length(pos - u_mouse);
+        float mi = 1.0 - smoothstep(0.0, u_mouseRadius, md);
+        mi *= mi;
+        return clamp(mix(a, u_mouseAlpha, mi), 0.0, 1.0);
       }
 
       float segDist(vec2 p, vec2 a, vec2 b) {
@@ -707,60 +666,63 @@
       }
 
       void main() {
-        vec2 fragCoord = gl_FragCoord.xy;
-        vec2 cell = floor(fragCoord / u_gridSpacing);
+        vec2 fc = gl_FragCoord.xy;
+        vec2 cell = floor(fc / u_gridSpacing);
 
         float dotMask = 0.0;
-        float closestDotAlpha = 0.0;
+        float bestAlpha = 0.0;
 
-        // 3x3 neighborhood for dots
+        // 3x3 dots
         for (int dy = -1; dy <= 1; dy++) {
           for (int dx = -1; dx <= 1; dx++) {
-            vec2 neighbor = cell + vec2(float(dx), float(dy));
-            vec2 pos = getDotPos(neighbor);
-            float dist = length(fragCoord - pos);
-            float d = 1.0 - smoothstep(u_dotSize - 0.8, u_dotSize + 0.8, dist);
-            float alpha = getDotAlpha(neighbor, pos);
-            if (d * alpha > dotMask) {
-              dotMask = d * alpha;
-              closestDotAlpha = alpha;
-            }
+            vec2 nb = cell + vec2(float(dx), float(dy));
+            vec2 p = getDotPos(nb);
+            float d = 1.0 - smoothstep(u_dotSize - 0.8, u_dotSize + 0.8, length(fc - p));
+            float al = getDotAlpha(nb, p);
+            float v = d * al;
+            if (v > dotMask) { dotMask = v; bestAlpha = al; }
           }
         }
 
-        // Edges: only current cell + right and up (no 3x3 edge loop)
-        float edgeMask = 0.0;
-        float edgeWidth = 0.6;
-        vec2 posA = getDotPos(cell);
-        float alphaA = getDotAlpha(cell, posA);
+        // 4 edges: current→right, current→up, left→current, below→current
+        float eMask = 0.0;
+        float ew = 0.6;
 
-        vec2 posR = getDotPos(cell + vec2(1.0, 0.0));
-        float alphaR = getDotAlpha(cell + vec2(1.0, 0.0), posR);
-        float dR = segDist(fragCoord, posA, posR);
-        float edgeR = 1.0 - smoothstep(edgeWidth - 0.3, edgeWidth + 0.3, dR);
-        edgeMask = max(edgeMask, edgeR * (alphaA + alphaR) * 0.15);
+        vec2 pC = getDotPos(cell);
+        float aC = getDotAlpha(cell, pC);
+        vec2 pR = getDotPos(cell + vec2(1.0, 0.0));
+        float aR = getDotAlpha(cell + vec2(1.0, 0.0), pR);
+        vec2 pU = getDotPos(cell + vec2(0.0, 1.0));
+        float aU = getDotAlpha(cell + vec2(0.0, 1.0), pU);
+        vec2 pL = getDotPos(cell + vec2(-1.0, 0.0));
+        float aL = getDotAlpha(cell + vec2(-1.0, 0.0), pL);
+        vec2 pD = getDotPos(cell + vec2(0.0, -1.0));
+        float aD = getDotAlpha(cell + vec2(0.0, -1.0), pD);
 
-        vec2 posU = getDotPos(cell + vec2(0.0, 1.0));
-        float alphaU = getDotAlpha(cell + vec2(0.0, 1.0), posU);
-        float dU = segDist(fragCoord, posA, posU);
-        float edgeU = 1.0 - smoothstep(edgeWidth - 0.3, edgeWidth + 0.3, dU);
-        edgeMask = max(edgeMask, edgeU * (alphaA + alphaU) * 0.15);
+        float e1 = 1.0 - smoothstep(ew - 0.3, ew + 0.3, segDist(fc, pC, pR));
+        float e2 = 1.0 - smoothstep(ew - 0.3, ew + 0.3, segDist(fc, pC, pU));
+        float e3 = 1.0 - smoothstep(ew - 0.3, ew + 0.3, segDist(fc, pL, pC));
+        float e4 = 1.0 - smoothstep(ew - 0.3, ew + 0.3, segDist(fc, pD, pC));
 
-        float combined = max(dotMask, edgeMask);
+        eMask = max(eMask, e1 * (aC + aR) * 0.15);
+        eMask = max(eMask, e2 * (aC + aU) * 0.15);
+        eMask = max(eMask, e3 * (aL + aC) * 0.15);
+        eMask = max(eMask, e4 * (aD + aC) * 0.15);
 
-        float mouseDistFrag = length(fragCoord - u_mouse);
-        float mouseGlow = 1.0 - smoothstep(0.0, u_mouseRadius, mouseDistFrag);
-        mouseGlow *= mouseGlow;
-        vec3 color = mix(u_dotColor * 0.6, u_dotColor, mouseGlow * 0.8 + closestDotAlpha * 0.3);
+        float combined = max(dotMask, eMask);
 
-        vec3 finalColor = mix(u_bgColor, color, combined);
+        float mgd = length(fc - u_mouse);
+        float mg = 1.0 - smoothstep(0.0, u_mouseRadius, mgd);
+        mg *= mg;
+        vec3 col = mix(u_dotColor * 0.6, u_dotColor, mg * 0.8 + bestAlpha * 0.3);
 
-        vec2 uv = gl_FragCoord.xy / u_resolution;
-        vec2 vigUV = uv * (1.0 - uv);
-        float vig = pow(vigUV.x * vigUV.y * 15.0, 0.2);
-        finalColor *= mix(0.7, 1.0, vig);
+        vec3 fin = mix(u_bgColor, col, combined);
 
-        gl_FragColor = vec4(finalColor, 1.0);
+        vec2 uv = fc / u_resolution;
+        vec2 vu = uv * (1.0 - uv);
+        fin *= mix(0.7, 1.0, pow(vu.x * vu.y * 15.0, 0.2));
+
+        gl_FragColor = vec4(fin, 1.0);
       }
     `;
 
@@ -827,19 +789,45 @@
     gl.uniform1f(uPulseIntensity, pulseIntensity);
 
     const startTime = performance.now();
-    const frameInterval = lowEnd ? 50 : 33; // ~20fps low-end, ~30fps normal
+    const frameInterval = 33; // ~30fps cap
     let lastFrame = 0;
     let isVisible = true;
 
+    // FPS monitoring: disable shader if sustained low FPS
+    let fpsSamples = [];
+    const FPS_CHECK_INTERVAL = 3000; // check every 3s
+    const FPS_THRESHOLD = 18; // disable below this
+    let lastFpsCheck = performance.now();
+
+    function disableShader() {
+      canvas.style.display = 'none';
+      document.body.style.background = `linear-gradient(135deg, rgb(${Math.round(bgColor[0]*255)},${Math.round(bgColor[1]*255)},${Math.round(bgColor[2]*255)}), rgb(${Math.round(bgColor[0]*400)},${Math.round(bgColor[1]*400)},${Math.round(bgColor[2]*400)}))`;
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+    }
+
     document.addEventListener('visibilitychange', () => {
       isVisible = !document.hidden;
-      if (isVisible) lastFrame = 0;
+      if (isVisible) { lastFrame = 0; fpsSamples = []; lastFpsCheck = performance.now(); }
     });
 
     function render(now) {
-      requestAnimationFrame(render);
-      if (!isVisible) return;
-      if (now - lastFrame < frameInterval) return;
+      if (!isVisible) { requestAnimationFrame(render); return; }
+      if (now - lastFrame < frameInterval) { requestAnimationFrame(render); return; }
+
+      // FPS tracking
+      fpsSamples.push(now);
+      if (now - lastFpsCheck > FPS_CHECK_INTERVAL && fpsSamples.length > 10) {
+        const duration = (fpsSamples[fpsSamples.length - 1] - fpsSamples[0]) / 1000;
+        const avgFps = fpsSamples.length / duration;
+        if (avgFps < FPS_THRESHOLD) {
+          console.warn(`Shader FPS too low (${avgFps.toFixed(1)}), disabling for performance.`);
+          disableShader();
+          return; // stop render loop
+        }
+        fpsSamples = [];
+        lastFpsCheck = now;
+      }
+
       lastFrame = now;
 
       const elapsed = (now - startTime) / 1000;
@@ -847,6 +835,7 @@
       gl.uniform2f(uResolution, canvas.width, canvas.height);
       gl.uniform2f(uMouse, mouseX, mouseY);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      requestAnimationFrame(render);
     }
 
     requestAnimationFrame(render);
