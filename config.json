@@ -1,8 +1,8 @@
 {
   "meta": {
-    "title": "Gl!tch — Roblox Developer",
-    "description": "Portfolio of a passionate Roblox developer with 7+ years of experience building immersive games and experiences.",
-    "favicon": "https://www.roblox.com/favicon.ico",
+    "title": "Gl!tch Portfolio",
+    "description": "Contact: @gl1tch1.",
+    "favicon": "assets/favicon.png",
     "ogImage": ""
   },
 
@@ -273,7 +273,7 @@
   },
 
   "snippets": {
-    "sectionTitle": "Code Snippets",
+    "sectionTitle": "Code Snippets / Open Source Modules",
     "sectionSubtitle": "Luau code samples used in some of my projects, feel free to take a look.",
     "items": [
       {
@@ -297,11 +297,11 @@
     "items": [
       {
         "question": "Are you available for commissions or hire?",
-        "answer": "Yes! I'm open to commissions and contract work. Whether you need a full game built from scratch, specific systems programmed feel free to reach out through my social links above."
+        "answer": "Usually I am avaliable but it depends on the project and my current workload. The best way to find out is to DM me on Discord with the details of your project and I'll let you know"
       },
       {
         "question": "Can I use your open-source modules in my games?",
-        "answer": "Absolutely! Any modules or resources I've published as open-source are free to use in your projects. Just make sure to check the specific license for each resource and give credit where required."
+        "answer": "Feel free to use them as you like! Just leave some credit"
       },
       {
         "question": "How can I contact you?",
