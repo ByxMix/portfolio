@@ -2,7 +2,7 @@
   "meta": {
     "title": "Gl!tch Portfolio",
     "description": "Contact: @gl1tch1.",
-    "favicon": "assets/favicon.png",
+    "favicon": "assets/profile.png",
     "ogImage": ""
   },
 
@@ -107,6 +107,24 @@
     "sectionTitle": "Project Showcase",
     "sectionSubtitle": "Videos showcasing my development process, tech demos or any related content.",
     "items": [
+        {
+        "title": "Fully Customizeable Combat System",
+        "description": "Features ping compensation, hit registration, client-side prediction, physics prediction and more. Making it more advanced than the casual Roblox combat system",
+        "type": "file",
+        "videoUrl": "assets/combat_system.mp4"
+        },
+        {
+        "title": "Squish n Stretch",
+        "description": "Saw a demo of it on Twitter and decided to make my own version. Pretty happy on how it turned out.",
+        "type": "file",
+        "videoUrl": "assets/squish.mp4"
+        },
+        {
+        "title": "Terrain generation demo",
+        "description": "Features biome regions, erosion, mesas, rivers, and more. Still a WIP missing some stuff like water and foliage to decorate it but the core systems are there.",
+        "type": "file",
+        "videoUrl": "assets/terrain_generation.mp4"
+        },
         {
         "title": "Ocean Shader Demo",
         "description": "Using animated PBR Textures and gestner waves to create a realistic ocean",
