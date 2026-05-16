@@ -1,17 +1,15 @@
 --< Services
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local HttpService = game:GetService("HttpService")
+local Methods = require(script.Methods)
 
 local StateManager = {}
 StateManager.__index = StateManager
 
 --< Types
 
-export type Directory = { string | number }
+type Directory = { string | number }
 
-export type DirectoryHookFunction = {
+type DirectoryHookFunction = {
 	Name: string,
 	Callback: (index: any, value: any) -> (any, boolean?),
 	Priority: number,
@@ -22,7 +20,7 @@ export type StateManagerType = {
 	Name: string,
 	sourceTable: { [any]: any },
 	Table: { [any]: any },
-	Destroyed: boolean?,
+	Destroying: RBXScriptSignal,
 
 	-- Methods
 	GetIndexChangedSignal: (self: StateManagerType, Directory) -> RBXScriptSignal,
@@ -37,92 +35,216 @@ export type StateManagerType = {
 	Destroy: (self: StateManagerType) -> (),
 }
 
-export type StateManagerConstructor = {
+type StateManagerConstructor = {
 	new: (Name: string, sourceTable: { [any]: any }) -> StateManagerType,
 	get: (Name: string) -> StateManagerType,
-	WaitForTable: (Name: string, timeOut: number?) -> StateManagerType | false,
+	WaitForTable: (Name: string, timeOut: number?) -> StateManagerType?,
+	InjectMethods: () -> (),
 }
 
 --< Values
 
 local StateManagerCache = {}
+local TableMethods = {
+	clear = table.clear,
+	clone = table.clone,
+	concat = table.concat,
+	create = table.create,
+	find = table.find,
+	freeze = table.freeze,
+	insert = table.insert,
+	isfrozen = table.isfrozen,
+	maxn = table.maxn,
+	move = table.move,
+	pack = table.pack,
+	remove = table.remove,
+	sort = table.sort,
+	unpack = table.unpack,
+}
 
 local GetMetatable
 local SetupMetatable
-local clone = table.clone
-local insert = table.insert
-local remove = table.remove
-local concat = table.concat
 
 --< Functions
+
+local function GetDirectoryKey(Directory)
+	return table.concat(Directory, ",")
+end
+
+local function GetChildDirectory(Directory, index)
+	local childDirectory = table.clone(Directory)
+	table.insert(childDirectory, index)
+	return childDirectory
+end
+
+local function FireIndexChanged(self, directoryKeyTable, value, previousValue, index)
+	local tempDirectoryKeyTable = table.clone(directoryKeyTable)
+
+	for i = #directoryKeyTable, 1, -1 do
+		local localDirectoryKeyString = table.concat(tempDirectoryKeyTable, ",")
+
+		local indexChangedObject = self.indexChangedCache[localDirectoryKeyString]
+		if indexChangedObject then
+			indexChangedObject.eventInstance:Fire(value, previousValue, index, directoryKeyTable)
+		end
+
+		table.remove(tempDirectoryKeyTable, i)
+	end
+end
+
+local function RunDirectoryHooks(self, directoryKey, value, previousValue)
+	local hookList = self.directoryHookFunctions[directoryKey]
+
+	for _, hookObject in hookList or {} do
+		local callbackValue, abortChange = hookObject.Callback(value, previousValue)
+
+		if abortChange then
+			return value, true
+		end
+
+		value = callbackValue
+	end
+
+	return value, false
+end
+
+local function RemoveSubTableCache(self, directoryKey)
+	self.subTables[directoryKey] = nil
+
+	local prefix = directoryKey .. ","
+
+	for subTableKey in self.subTables do
+		if string.sub(subTableKey, 1, #prefix) == prefix then
+			self.subTables[subTableKey] = nil
+		end
+	end
+end
+
+local function PrepareValueForSet(self, value, directoryKeyTable)
+	if typeof(value) ~= "table" then
+		return value
+	end
+
+	local valueMetatable = getmetatable(value)
+
+	if valueMetatable and valueMetatable.__sourcetable then
+		return value
+	end
+
+	return SetupMetatable(self, value, directoryKeyTable)
+end
+
+local function DeepClone(tbl: { any }): { any }
+	local clone = table.clone(tbl)
+
+	for key, value in tbl do
+		if type(value) == "table" then
+			clone[key] = DeepClone(value)
+		end
+	end
+
+	return clone
+end
+
+----
 
 --Get metatable of a new table
 GetMetatable = function(self, sourceTable, Directory)
 	local Metatable = {}
-	local dirKeyNow = table.concat(Directory, ",")
-	local dirKeyNowTable = string.split(dirKeyNow, ",")
 
-	function Metatable.__index(table, index)
+	function Metatable.__index(tbl, index)
 		return sourceTable[index]
 	end
 
-	function Metatable.__iter(table)
-		return pairs(sourceTable)
+	function Metatable.__iter(tbl)
+		return next(sourceTable)
 	end
 
-	function Metatable.__len(table)
+	function Metatable.__len(tbl)
 		return #sourceTable
 	end
 
+	--TODO: Store functions outside
 	--New index, checks when a new value has been added to the table, if so, run directory functions and changed events
-	function Metatable.__newindex(table, index, value)
-		--Return if current value is the same as the new value
+	function Metatable.__newindex(tbl, index, value)
 		if sourceTable[index] == value then
 			return
 		end
 
-		--Create directory key string and table
-		local directoryKey = concat(Directory, ",") .. `,{index}`
-		local directoryKeyTable = string.split(directoryKey, ",")
+		local previousValue = sourceTable[index]
 
-		--Run directory functions
-		local hookList = self.directoryHookFunctions[directoryKey]
-		for i, hookObject in hookList or {} do
-			local nValue, abort = hookObject.Callback(value)
+		local directoryKeyTable = GetChildDirectory(Directory, index)
+		local directoryKey = GetDirectoryKey(directoryKeyTable)
 
-			if abort then
+		--Fire hooked functions
+		if not Metatable.__silent then
+			local abortChange
+			value, abortChange = RunDirectoryHooks(self, directoryKey, value, previousValue)
+
+			if abortChange then
 				return
 			end
-
-			value = nValue
 		end
 
-		--Check if the value is a table and if its about to be removed
-		if typeof(sourceTable[index]) == "table" and value == nil then
-			self.subTables[dirKeyNow] = nil
+		--Check if value to be removed is a table, if so, clean it up
+		if typeof(previousValue) == "table" and value == nil then
+			RemoveSubTableCache(self, directoryKey)
 		end
 
-		--Check if theres a sub table and set up its metatable
-		if typeof(value) == "table" then
-			local SubDirectory = clone(Directory)
-			insert(SubDirectory, index)
-			SetupMetatable(self, value, SubDirectory)
-		end
+		value = PrepareValueForSet(self, value, directoryKeyTable)
 
-		--Apply change to source table
-		local previousValue = sourceTable[index]
 		sourceTable[index] = value
 
-		--Fire changed event for all events connected
-		local directoryKeyTable = string.split(directoryKey, ",")
-		for i = #directoryKeyTable, 1, -1 do
-			local tempDirKey = concat(directoryKeyTable, ",")
-			if self.indexChangedCache[tempDirKey] then
-				self.indexChangedCache[tempDirKey].eventInstance:Fire(value, previousValue)
-			end
-			remove(directoryKeyTable, i)
+		--Fire changed events
+		if not Metatable.__silent then
+			FireIndexChanged(self, directoryKeyTable, value, previousValue, index)
 		end
 	end
+
+	--Fork for the table.removed
+	function Metatable.__remove(tbl, index)
+		local length = #sourceTable
+
+		if length == 0 then
+			return nil
+		end
+
+		index = index or length
+		if index < 1 or index > length then
+			error(`invalid position {index} for table.remove`, 2)
+		end
+
+		local previousValue = sourceTable[index]
+
+		local directoryKeyTable = GetChildDirectory(Directory, index)
+		local directoryKey = GetDirectoryKey(directoryKeyTable)
+
+		--Fire hooked functions
+		if not Metatable.__silent then
+			local _, abortChange = RunDirectoryHooks(self, directoryKey, nil, previousValue)
+
+			if abortChange then
+				return nil
+			end
+		end
+
+		--Check if value to be removed is a table, if so, clean it up
+		if typeof(previousValue) == "table" then
+			RemoveSubTableCache(self, directoryKey)
+		end
+
+		local removedValue = table.remove(sourceTable, index)
+
+		--Fire changed events
+		if not Metatable.__silent then
+			FireIndexChanged(self, directoryKeyTable, nil, previousValue, index)
+		end
+
+		return removedValue
+	end
+
+	Metatable.__sourcetable = sourceTable
+	Metatable.__silent = false
 
 	return Metatable
 end
@@ -132,15 +254,15 @@ SetupMetatable = function(self, sourceTable, Directory)
 	--Check for sub tables
 	for i, v in sourceTable do
 		if typeof(v) == "table" then
-			local SubDirectory = clone(Directory)
-			insert(SubDirectory, i)
+			local SubDirectory = table.clone(Directory)
+			table.insert(SubDirectory, i)
 			sourceTable[i] = SetupMetatable(self, v, SubDirectory)
 		end
 	end
 
 	--Add table to subtable cache
 	if #Directory ~= 1 then
-		local directoryKey = concat(Directory, ",")
+		local directoryKey = table.concat(Directory, ",")
 		self.subTables[directoryKey] = {
 			Directory = Directory,
 			sourceTable = sourceTable,
@@ -175,7 +297,6 @@ function StateManager:HookToDirectory(Directory, HookName, Callback, Priority)
 
 	--Add and sort by priority
 	table.insert(hookList, hookObject)
-
 	table.sort(hookList, function(a, b)
 		return a.Priority > b.Priority
 	end)
@@ -205,9 +326,8 @@ function StateManager:UnhookFromDirectory(Directory, HookName)
 	return removed
 end
 
-----
-
-function StateManager:GetIndexChangedSignal(Directory: { string })
+function StateManager:GetIndexChangedSignal(Directory: { string? })
+	Directory = Directory or {}
 	table.insert(Directory, 1, self.Name)
 	local directoryString = table.concat(Directory, ",")
 
@@ -223,32 +343,64 @@ function StateManager:GetIndexChangedSignal(Directory: { string })
 	return self.indexChangedCache[directoryString].Event
 end
 
-----
-
 --Clean up the state replicator
 function StateManager:Destroy()
-	self.Destroyed = true
+	if self._destroyed then
+		return
+	end
+	self._destroyed = true
 
-	StateManagerCache[self.Name] = nil
-
-	setmetatable(self.Table, nil)
-	for i, subTable in self.subTables do
-		setmetatable(subTable.sourceTable, nil)
+	if self.destroyingInstance then
+		self.destroyingInstance:Fire()
 	end
 
-	for i, indexChangedObject in self.indexChangedCache do
-		indexChangedObject.eventInstance:Destroy()
+	if self.Name then
+		StateManagerCache[self.Name] = nil
 	end
 
-	self.Table = nil
-	self.Name = nil
+	if self.directoryHookFunctions then
+		table.clear(self.directoryHookFunctions)
+		self.directoryHookFunctions = nil
+	end
+
+	if self.indexChangedCache then
+		for _, indexChangedObject in self.indexChangedCache do
+			if indexChangedObject.eventInstance then
+				indexChangedObject.eventInstance:Destroy()
+			end
+		end
+		table.clear(self.indexChangedCache)
+		self.indexChangedCache = nil
+	end
+
+	if self.Table then
+		setmetatable(self.Table, nil)
+		self.Table = nil
+	end
+
+	if self.subTables then
+		for _, subTable in self.subTables do
+			if subTable.sourceTable then
+				setmetatable(subTable.sourceTable, nil)
+			end
+		end
+		table.clear(self.subTables)
+		self.subTables = nil
+	end
+
+	if self.destroyingInstance then
+		self.destroyingInstance:Destroy()
+		self.destroyingInstance = nil
+		self.Destroying = nil
+	end
+
 	self.sourceTable = nil
-	self.subTables = nil
+	self.Name = nil
+
+	setmetatable(self, nil)
 end
 
 --< Main
-
---Setup
 
 --Script
 
@@ -259,17 +411,19 @@ function StateManager.new(Name: string, sourceTable: {})
 
 	local self = setmetatable({}, StateManager)
 
-	--< Values
-
+	--Values
 	self.Name = Name :: string
-	self.sourceTable = sourceTable :: { any }
 	self.subTables = {}
 	self.Table = SetupMetatable(self, sourceTable, { self.Name }) :: { any }
 
+	self.sourceTable = sourceTable :: { any }
 	self.directoryHookFunctions = {}
 	self.indexChangedCache = {}
 
-	-- Add table to cache
+	self.destroyingInstance = Instance.new("BindableEvent")
+	self.Destroying = self.destroyingInstance.Event
+
+	--Add table to cache
 	StateManagerCache[Name] = self
 
 	--< End
@@ -294,11 +448,25 @@ function StateManager.WaitForTable(Name: string, timeOut: number?)
 
 		if timeWaited >= 5 and not warned then
 			warned = true
-			warn(`StateManager: Infinite yield possible on waiting for table '{Name}' to be added`)
+			warn(`[StateManager] Infinite yield possible on waiting for table '{Name}' to be added`)
 		end
 	end
 
 	return StateManagerCache[Name]
+end
+
+--This function will replace enviroment methods with the ones on the Methods module, if you don't want it to do this use the Methods module
+function StateManager.InjectMethods()
+	local enviroment = getfenv(2)
+	local tableMethodsClone = DeepClone(TableMethods)
+
+	enviroment.table = tableMethodsClone
+
+	for methodName, methodCallback in Methods do
+		local methodTable = methodName == "print" and enviroment or tableMethodsClone --hacky fix but works for now
+
+		methodTable[methodName] = methodCallback
+	end
 end
 
 --End
