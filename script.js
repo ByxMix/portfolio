@@ -36,10 +36,9 @@
   async function init() {
     let config;
     try {
-      const resp = await fetch('config.json?v=' + Date.now());
+      const resp = await fetch('config.json', { cache: 'no-store' });
       if (!resp.ok) throw new Error('Failed to load config.json');
       config = await resp.json();
-      window._configVersion = Date.now();
     } catch (err) {
       console.error('Error loading config:', err);
       document.body.innerHTML = '<p style="color:#fff;text-align:center;padding:40px;">Failed to load config.json. Make sure it exists in the same folder as index.html.</p>';
@@ -398,7 +397,7 @@
       let code = snippet.code || '';
       if (snippet.codeFile) {
         try {
-          const resp = await fetch(snippet.codeFile + '?v=' + (window._configVersion || Date.now()));
+          const resp = await fetch(snippet.codeFile, { cache: 'no-store' });
           if (resp.ok) code = await resp.text();
         } catch (e) {
           console.warn('Failed to load snippet file:', snippet.codeFile, e);
