@@ -246,7 +246,7 @@
         "videoUrl": "assets/gun_system.mp4"
         },
         {
-        "title": "3D mesh rendering",
+        "title": "3D rasterization",
         "description": "Showcase of a 3D mesh rendering system, can handle around 1000 triangles with decent performance.",
         "type": "file",
         "videoUrl": "assets/2d_mesh_render.mp4"
