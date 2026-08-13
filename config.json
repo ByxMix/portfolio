@@ -305,6 +305,18 @@
         "description": "A module for creating and managing splines, allowing for smooth interpolation between points.",
         "language": "luau",
         "codeFile": "assets/spline_creator.luau"
+      },
+      {
+        "title": "Hitbox Manager",
+        "description": "A module that handles hitbox behaviour with ping compensation and physics prediction.",
+        "language": "luau",
+        "codeFile": "assets/hitbox_manager.luau"
+      },
+      {
+        "title": "Parallel Manager",
+        "description": "A parallel lua manager that makes running functions easier by splitting the workload across multiple actors.",
+        "language": "luau",
+        "codeFile": "assets/parallel_manager.luau"
       }
     ]
   },
